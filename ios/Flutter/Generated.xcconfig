@@ -1,6 +1,6 @@
 // This is a generated file; do not edit or check into version control.
-FLUTTER_ROOT=C:\flutter
-FLUTTER_APPLICATION_PATH=C:\Users\roro\Documents\Neoland\TFB\chessapp
+FLUTTER_ROOT=C:\Users\rori1\Flutter\flutter
+FLUTTER_APPLICATION_PATH=C:\Users\rori1\Documents\prog_proj\chessapp
 COCOAPODS_PARALLEL_CODE_SIGN=true
 FLUTTER_TARGET=lib\main.dart
 FLUTTER_BUILD_DIR=build
