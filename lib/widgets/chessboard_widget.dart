@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 import '../models/game_state.dart';
-import '../models/move.dart'; // Import Move class for handling moves
+import '../models/move.dart';
 
 class ChessboardWidget extends StatefulWidget {
   const ChessboardWidget({super.key});
@@ -45,12 +45,10 @@ class ChessboardWidgetState extends State<ChessboardWidget> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Background 10x10 grid for coordinates
             _buildLabelGrid(),
-            // 8x8 chessboard grid on top of the 10x10 grid
             Positioned(
-              top: cellSize, // Align the chessboard below the label row
-              left: cellSize, // Align the chessboard to the right of the label column
+              top: cellSize,
+              left: cellSize,
               width: boardDimension,
               height: boardDimension,
               child: _buildChessboard(cellSize, boardDimension),
@@ -61,7 +59,6 @@ class ChessboardWidgetState extends State<ChessboardWidget> {
     );
   }
 
-  // Create label grid
   Widget _buildLabelGrid() {
     return GridView.builder(
       physics: NeverScrollableScrollPhysics(),
@@ -92,7 +89,6 @@ class ChessboardWidgetState extends State<ChessboardWidget> {
     );
   }
 
-  // Create chessboard
   Widget _buildChessboard(double cellSize, double boardDimension) {
     return SizedBox(
       width: boardDimension,
@@ -112,70 +108,93 @@ class ChessboardWidgetState extends State<ChessboardWidget> {
           bool isSelected = selectedPieceIndex == index;
 
           return GestureDetector(
-onTap: () {
+            onTap: () {
   setState(() {
     if (selectedPieceIndex == null) {
       // Select the piece if one is tapped
       if (piece != null) {
-        selectedPieceIndex = index;
+        selectedPieceIndex = index; // Highlight the selected piece
+        logger.d('Selected piece: ${_getPieceName(piece)} at ${_getPosition(selectedPieceIndex!)}');
+      } else {
+        logger.d('Tapped on empty square at ${_getPosition(index)}');
       }
     } else {
       final selectedPiece = pieces[selectedPieceIndex!];
 
-      // Check if target piece is of the same color
+      // Check if the target piece is of the same color
       if (piece != null && selectedPiece != null && piece[0] == selectedPiece[0]) {
         // If the selected piece and target piece are the same color, deselect
+        logger.d('Deselected piece: ${_getPieceName(selectedPiece)} at ${_getPosition(selectedPieceIndex!)}');
         selectedPieceIndex = null;
       } else {
-        // Check if the move is valid
-        if (selectedPiece != null &&
-            context.read<GameState>().chessGame.isValidMove(
-                selectedPiece, selectedPieceIndex!, index)) {
+        // Check if the selected piece is a King
+        if (selectedPiece != null && selectedPiece[1] == 'K') {
+    // Ensure indices for castling are within valid range
+    if (context.read<GameState>().chessGame.canCastle('KingSide', selectedPiece[0] == 'w' ? 'White' : 'Black') &&
+        index == (selectedPieceIndex! + 2) && selectedPieceIndex! <= 61) {
+        // Perform kingside castling
+    } else if (context.read<GameState>().chessGame.canCastle('QueenSide', selectedPiece[0] == 'w' ? 'White' : 'Black') &&
+        index == (selectedPieceIndex! - 2) && selectedPieceIndex! >= 2) {
+        // Perform queenside castling
+    }
+}
 
-          // Capture piece if applicable
-          String? capturedPiece = pieces[index];
-          if (capturedPiece != null) {
-            context.read<GameState>().addCapturedPiece(
-                _getPieceName(capturedPiece));
-          }
 
-          // Generate move message
-          String moveMessage;
-          if (capturedPiece != null) {
-            moveMessage = "${_getPieceName(selectedPiece)} captures ${_getPieceName(capturedPiece)} at ${_getPosition(index)} from ${_getPosition(selectedPieceIndex!)}";
-          } else {
-            moveMessage = "${_getPieceName(selectedPiece)} moves from ${_getPosition(selectedPieceIndex!)} to ${_getPosition(index)}";
-          }
+        // Check if the move is valid for standard piece movement
+        if (selectedPiece != null && context.read<GameState>().chessGame.isValidMove(selectedPiece, selectedPieceIndex!, index)) {
+  
+  // Before proceeding, ensure the index is valid
+  if (index < 0 || index >= 64) {
+    print("Attempted to move to an invalid index: $index");
+    return; // or handle the error appropriately
+  }
 
-          // Log move or capture
-          logger.d(moveMessage);
+  // Print moving information for debugging
+  print("Moving ${_getPieceName(selectedPiece)} from index ${selectedPieceIndex!} to index $index");
 
-          // Move the piece
-          pieces[index] = selectedPiece;
-          pieces[selectedPieceIndex!] = null;
+  // Capture piece if applicable
+  String? capturedPiece = pieces[index];
+  if (capturedPiece != null) {
+    logger.d('Captured piece: ${_getPieceName(capturedPiece)} at ${_getPosition(index)}');
+    context.read<GameState>().addCapturedPiece(_getPieceName(capturedPiece));
+  }
 
-          // Add the move to the game state
-          context.read<GameState>().addMove(
-            Move(
-              _getPieceName(selectedPiece),
-              _getPosition(selectedPieceIndex!),
-              _getPosition(index),
-              isCapture: capturedPiece != null,
-              description: moveMessage,
-            ),
-          );
+  // Move the piece
+  pieces[index] = selectedPiece; // Place the selected piece in the new position
+  pieces[selectedPieceIndex!] = null; // Remove it from the old position
 
-          // Switch turn after move
-          context.read<GameState>().switchTurn();
-        }
+  // Log pieces' positions
+  logger.d('Moved piece: ${_getPieceName(selectedPiece)}');
+  logger.d('Board state: $pieces');
+
+  // Update moved status for the piece
+  context.read<GameState>().chessGame.updateMovedStatus(selectedPiece);
+
+  // Add the move to the game state
+  context.read<GameState>().addMove(
+    Move(
+      _getPieceName(selectedPiece),
+      _getPosition(selectedPieceIndex!),
+      _getPosition(index),
+      isCapture: capturedPiece != null,
+      description: "${_getPieceName(selectedPiece)} moves from ${_getPosition(selectedPieceIndex!)} to ${_getPosition(index)}" +
+                   (capturedPiece != null ? " capturing ${_getPieceName(capturedPiece)}" : ""),
+    ),
+  );
+
+  // Switch turn after move
+  context.read<GameState>().switchTurn();
+} else {
+  logger.d('Invalid move attempted for ${_getPieceName(selectedPiece)} to index $index');
+}
 
         // Reset selection after any move or capture attempt
-        selectedPieceIndex = null;
+        selectedPieceIndex = null; // Deselect the piece after attempt
       }
     }
   });
-},
-
+}
+,
             child: Container(
               decoration: BoxDecoration(
                 color: isSelected

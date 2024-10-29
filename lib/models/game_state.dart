@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'chess_game.dart';
-import 'move.dart'; // Ensure this path is correct
+import 'move.dart'; 
 
 class GameState with ChangeNotifier {
   final ChessGame chessGame = ChessGame();
-  
+
   String _currentTurn = 'White';
   String get currentTurn => _currentTurn;
 
@@ -36,4 +36,21 @@ class GameState with ChangeNotifier {
     _currentTurn = 'White';
     notifyListeners();
   }
+
+  bool handleCastling(String side) {
+    String color = _currentTurn; // Current player's turn
+    if (chessGame.canCastle(side, color)) {
+      chessGame.castle(side, color);
+      addMove(Move(
+        '$color King',
+        '', // From
+        '', // To
+        description: '$color King castles to the $side',
+      ));
+      switchTurn();
+      return true; // Castling was successful
+    }
+    return false; // Castling failed
+  }
 }
+
