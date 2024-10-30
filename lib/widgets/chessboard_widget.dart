@@ -115,81 +115,90 @@ class ChessboardWidgetState extends State<ChessboardWidget> {
       if (piece != null) {
         selectedPieceIndex = index; // Highlight the selected piece
         logger.d('Selected piece: ${_getPieceName(piece)} at ${_getPosition(selectedPieceIndex!)}');
-      } else {
-        logger.d('Tapped on empty square at ${_getPosition(index)}');
       }
     } else {
       final selectedPiece = pieces[selectedPieceIndex!];
 
-      // Check if the target piece is of the same color
+      // Check if selected piece is a King and if castling is possible
+      if (selectedPiece != null && selectedPiece[1].toUpperCase() == 'K') {
+        bool isWhite = selectedPiece[0] == 'w';
+        String color = isWhite ? 'White' : 'Black';
+
+        if (context.read<GameState>().chessGame.canCastle('KingSide', color) &&
+            index == (selectedPieceIndex! + 2) && selectedPieceIndex! <= 61) {
+          logger.d('$color KingSide castling attempt detected');
+          context.read<GameState>().handleCastling('KingSide');
+          logger.d('Executed KingSide castling for $color');
+          selectedPieceIndex = null;
+          return;
+        } else if (context.read<GameState>().chessGame.canCastle('QueenSide', color) &&
+                   index == (selectedPieceIndex! - 2) && selectedPieceIndex! >= 2) {
+          logger.d('$color QueenSide castling attempt detected');
+          context.read<GameState>().handleCastling('QueenSide');
+          logger.d('Executed QueenSide castling for $color');
+          selectedPieceIndex = null;
+          return;
+        } else {
+          logger.d('Invalid castling move attempted for $color King to index $index');
+        }
+      }
+
+      // If target piece is of the same color, deselect the selected piece
       if (piece != null && selectedPiece != null && piece[0] == selectedPiece[0]) {
-        // If the selected piece and target piece are the same color, deselect
         logger.d('Deselected piece: ${_getPieceName(selectedPiece)} at ${_getPosition(selectedPieceIndex!)}');
         selectedPieceIndex = null;
       } else {
-        // Check if the selected piece is a King
-        if (selectedPiece != null && selectedPiece[1] == 'K') {
-    // Ensure indices for castling are within valid range
-    if (context.read<GameState>().chessGame.canCastle('KingSide', selectedPiece[0] == 'w' ? 'White' : 'Black') &&
-        index == (selectedPieceIndex! + 2) && selectedPieceIndex! <= 61) {
-        // Perform kingside castling
-    } else if (context.read<GameState>().chessGame.canCastle('QueenSide', selectedPiece[0] == 'w' ? 'White' : 'Black') &&
-        index == (selectedPieceIndex! - 2) && selectedPieceIndex! >= 2) {
-        // Perform queenside castling
-    }
-}
-
-
-        // Check if the move is valid for standard piece movement
+        // Validate move for standard piece movement
         if (selectedPiece != null && context.read<GameState>().chessGame.isValidMove(selectedPiece, selectedPieceIndex!, index)) {
-  
-  // Before proceeding, ensure the index is valid
-  if (index < 0 || index >= 64) {
-    print("Attempted to move to an invalid index: $index");
-    return; // or handle the error appropriately
-  }
 
-  // Print moving information for debugging
-  print("Moving ${_getPieceName(selectedPiece)} from index ${selectedPieceIndex!} to index $index");
+          // Ensure the index is valid
+          if (index < 0 || index >= 64) {
+            logger.d("Attempted to move to an invalid index: $index");
+            selectedPieceIndex = null;
+            return;
+          }
 
-  // Capture piece if applicable
-  String? capturedPiece = pieces[index];
-  if (capturedPiece != null) {
-    logger.d('Captured piece: ${_getPieceName(capturedPiece)} at ${_getPosition(index)}');
-    context.read<GameState>().addCapturedPiece(_getPieceName(capturedPiece));
-  }
+          // Print moving information for debugging
+          logger.d("Moving ${_getPieceName(selectedPiece)} from ${_getPosition(selectedPieceIndex!)} to ${_getPosition(index)}");
 
-  // Move the piece
-  pieces[index] = selectedPiece; // Place the selected piece in the new position
-  pieces[selectedPieceIndex!] = null; // Remove it from the old position
+          // Capture piece if applicable
+          String? capturedPiece = pieces[index];
+          if (capturedPiece != null) {
+            logger.d('Captured piece: ${_getPieceName(capturedPiece)} at ${_getPosition(index)}');
+            context.read<GameState>().addCapturedPiece(_getPieceName(capturedPiece));
+          }
 
-  // Log pieces' positions
-  logger.d('Moved piece: ${_getPieceName(selectedPiece)}');
-  logger.d('Board state: $pieces');
+          // Move the piece
+          pieces[index] = selectedPiece; // Place the selected piece in the new position
+          pieces[selectedPieceIndex!] = null; // Remove it from the old position
 
-  // Update moved status for the piece
-  context.read<GameState>().chessGame.updateMovedStatus(selectedPiece);
+          // Log board state
+          logger.d('Moved piece: ${_getPieceName(selectedPiece)}');
+          logger.d('Board state: $pieces');
 
-  // Add the move to the game state
-  context.read<GameState>().addMove(
-    Move(
-      _getPieceName(selectedPiece),
-      _getPosition(selectedPieceIndex!),
-      _getPosition(index),
-      isCapture: capturedPiece != null,
-      description: "${_getPieceName(selectedPiece)} moves from ${_getPosition(selectedPieceIndex!)} to ${_getPosition(index)}" +
-                   (capturedPiece != null ? " capturing ${_getPieceName(capturedPiece)}" : ""),
-    ),
-  );
+          // Update moved status for the piece
+          context.read<GameState>().chessGame.updateMovedStatus(selectedPiece);
 
-  // Switch turn after move
-  context.read<GameState>().switchTurn();
-} else {
-  logger.d('Invalid move attempted for ${_getPieceName(selectedPiece)} to index $index');
-}
+          // Add the move to the game state
+          context.read<GameState>().addMove(
+            Move(
+              _getPieceName(selectedPiece),
+              _getPosition(selectedPieceIndex!),
+              _getPosition(index),
+              isCapture: capturedPiece != null,
+              description: '${_getPieceName(selectedPiece)} moves from ${_getPosition(selectedPieceIndex!)} to ${_getPosition(index)}'
+             '${capturedPiece != null ? " capturing ${_getPieceName(capturedPiece)}" : ""}'
+             ),
+          );
+
+          // Switch turn after move
+          context.read<GameState>().switchTurn();
+        } else {
+          logger.d('Invalid move attempted for ${_getPieceName(selectedPiece)} to index $index');
+        }
 
         // Reset selection after any move or capture attempt
-        selectedPieceIndex = null; // Deselect the piece after attempt
+        selectedPieceIndex = null;
       }
     }
   });

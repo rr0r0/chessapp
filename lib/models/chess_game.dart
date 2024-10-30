@@ -1,15 +1,20 @@
 import 'package:flutter/foundation.dart'; 
+import 'game_state.dart';
+import 'move.dart';
+
 
 class ChessGame extends ChangeNotifier {
   // Assume that you have a method to track piece positions
   final Map<String, bool> pieceMoved = {
-    'wK': false, // White King
-    'wR1': false, // White Rook on a1
-    'wR2': false, // White Rook on h1
+    'wk': false, // White King
+    'wr1': false, // White Rook on a1
+    'wr2': false, // White Rook on h1
     'bK': false, // Black King
     'bR1': false, // Black Rook on a8
     'bR2': false, // Black Rook on h8
   };
+
+  List<Move> get moveHistory => GameState().moves;
 
   // Sample board representation for demonstration
   final List<String?> pieces = List.filled(64, null); 
@@ -53,6 +58,7 @@ class ChessGame extends ChangeNotifier {
   bool isPawnMoveValid(String piece, int fromRow, int fromCol, int toRow, int toCol) {
     int direction = piece[0] == 'w' ? -1 : 1; // White moves up (1), Black moves down (-1)
     int initialRow = piece[0] == 'w' ? 6 : 1; // Correct initial rows for white and black pawns
+    int peassantRow = piece[0] == 'w' ? 3 : 4;
 
     // Check for normal move (one square forward)
     if (toCol == fromCol) {
@@ -80,6 +86,17 @@ class ChessGame extends ChangeNotifier {
           pieces[toRow * 8 + toCol]![0] != piece[0]) {
         return true; // Valid capture move
       }
+    }
+
+    print(moveHistory.toString());
+    if (moveHistory.isNotEmpty) {
+      print(moveHistory.toString());
+    Move lastMove = moveHistory.last;
+   if((piece[0] == 'w' && (initialRow - 3*direction) == peassantRow)){
+       print(lastMove);
+    }else if(((initialRow + 3*direction) ==peassantRow)){
+      print(lastMove);
+    }
     }
 
     return false; // Invalid pawn move
@@ -151,12 +168,12 @@ class ChessGame extends ChangeNotifier {
 
   // Update the moved status of pieces
   void updateMovedStatus(String piece) {
-    if (piece == 'wK') {
-      pieceMoved['wK'] = true;
-    } else if (piece == 'wR1') {
-      pieceMoved['wR1'] = true;
-    } else if (piece == 'wR2') {
-      pieceMoved['wR2'] = true;
+    if (piece == 'wk') {
+      pieceMoved['wk'] = true;
+    } else if (piece == 'wr1') {
+      pieceMoved['wr1'] = true;
+    } else if (piece == 'wr2') {
+      pieceMoved['wr2'] = true;
     } else if (piece == 'bK') {
       pieceMoved['bK'] = true;
     } else if (piece == 'bR1') {
@@ -167,65 +184,40 @@ class ChessGame extends ChangeNotifier {
   }
 
   bool canCastle(String side, String color) {
-    String king = color == 'White' ? 'wK' : 'bK';
-    String rook = side == 'KingSide' ? (color == 'White' ? 'wR2' : 'bR2') : (color == 'White' ? 'wR1' : 'bR1');
+   String king = color == 'White' ? 'wk' : 'bK';
+   String rook = side == 'KingSide' ? (color == 'White' ? 'wr2' : 'bR2') : (color == 'White' ? 'wr1' : 'bR1');
 
-    // Log King and Rook status
-    print('$color King moved: ${pieceMoved[king]}');
-    print('$color Rook moved: ${pieceMoved[rook]}');
-
-    // Check if the king and rook have moved
-    if (pieceMoved[king] == false && pieceMoved[rook] == false) {
-      // Log additional checks for castling conditions
-      print('Castling checks for $color $side:');
-      for (int i = 0; i < 3; i++) { // Check all squares between king and rook
-        int squareIndex = (side == 'KingSide') ? 62 + i : 58 + i; // Index of the squares between King and Rook
-        String? squarePiece = pieces[squareIndex];
-        print('Square $squareIndex occupied by: ${squarePiece ?? 'empty'}');
-
-        if (squarePiece != null) {
-          print('Cannot castle: Square $squareIndex is occupied.');
-          return false; // Cannot castle if any square is occupied
-        }
+   if (!pieceMoved[king]! && !pieceMoved[rook]!) {
+      int start = color == 'White' ? 60 : 4;
+      int end = side == 'KingSide' ? start + 2 : start - 2;
+      
+      for (int i = start; i != end; i += side == 'KingSide' ? 1 : -1) {
+         if (pieces[i] != null || isUnderAttack(color, 'K')) return false;
       }
+      return true;
+   }
+   return false;
+}
 
-      // Additional checks for check
-      if (isUnderAttack(color, king) || isUnderAttack(color, rook)) {
-        print('Cannot castle: $color is in check.');
-        return false;
-      }
-
-      print('Castling is possible for $color $side.');
-      return true; // Castling is possible
-    }
-
-    print('Cannot castle: $color $side. King or Rook has moved.');
-    return false; // Either the king or rook has moved
-  }
-
-  void castle(String side, String color) {
-    if (canCastle(side, color)) {
-      int kingStartIndex = color == 'White' ? 60 : 4; // King start index
+void castle(String side, String color) {
+   if (canCastle(side, color)) {
+      int kingStartIndex = color == 'White' ? 60 : 4;
       int rookStartIndex = side == 'KingSide' ? (color == 'White' ? 63 : 7) : (color == 'White' ? 56 : 0);
-      int kingTargetIndex = side == 'KingSide' ? kingStartIndex + 2 : kingStartIndex - 2; // King target index
-      int rookTargetIndex = side == 'KingSide' ? kingTargetIndex - 1 : kingTargetIndex + 1; // Rook target index
+      int kingTargetIndex = side == 'KingSide' ? kingStartIndex + 2 : kingStartIndex - 2;
+      int rookTargetIndex = side == 'KingSide' ? kingTargetIndex - 1 : kingTargetIndex + 1;
 
-      // Move the King and Rook
       pieces[kingTargetIndex] = pieces[kingStartIndex];
-      pieces[kingStartIndex] = null; // Empty the old position
+      pieces[kingStartIndex] = null;
       pieces[rookTargetIndex] = pieces[rookStartIndex];
-      pieces[rookStartIndex] = null; // Empty the old position
+      pieces[rookStartIndex] = null;
 
-      // Update the moved status
-      updateMovedStatus(kingStartIndex == 60 ? 'wK' : 'bK');
-      updateMovedStatus(rookStartIndex == 63 ? 'wR2' : (rookStartIndex == 7 ? 'wR1' : 'bR2'));
+      updateMovedStatus(color == 'White' ? 'wk' : 'bK');
+      updateMovedStatus(rookStartIndex == 63 ? 'wr2' : 'wr1');
 
-      print('Castled $color $side. King moved to $kingTargetIndex, Rook moved to $rookTargetIndex.');
       notifyListeners();
-    } else {
-      print('Castling failed for $color $side.');
-    }
-  }
+   }
+}
+
 
   bool isUnderAttack(String color, String piece) {
     // Implement logic to determine if the king is under attack
@@ -234,9 +226,9 @@ class ChessGame extends ChangeNotifier {
 
   void reset() {
     // Reset logic for the game state
-    pieceMoved['wK'] = false;
-    pieceMoved['wR1'] = false;
-    pieceMoved['wR2'] = false;
+    pieceMoved['wk'] = false;
+    pieceMoved['wr1'] = false;
+    pieceMoved['wr2'] = false;
     pieceMoved['bK'] = false;
     pieceMoved['bR1'] = false;
     pieceMoved['bR2'] = false;

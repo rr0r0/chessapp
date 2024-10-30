@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'chess_game.dart';
-import 'move.dart'; 
+import 'move.dart';
 
 class GameState with ChangeNotifier {
   final ChessGame chessGame = ChessGame();
@@ -8,8 +8,8 @@ class GameState with ChangeNotifier {
   String _currentTurn = 'White';
   String get currentTurn => _currentTurn;
 
-  final List<Move> _moves = [];
-  List<Move> get moveHistory => List.unmodifiable(_moves);
+  final List<Move> moves = [];
+  List<Move> get moveHistory => List.unmodifiable(moves);
 
   final List<String> _capturedPieces = [];
   List<String> get capturedPieces => List.unmodifiable(_capturedPieces);
@@ -20,8 +20,9 @@ class GameState with ChangeNotifier {
   }
 
   void addMove(Move move) {
-    _moves.add(move);
+    moves.add(move);
     notifyListeners();
+    print(moves);
   }
 
   void addCapturedPiece(String piece) {
@@ -31,14 +32,14 @@ class GameState with ChangeNotifier {
 
   void reset() {
     chessGame.reset();
-    _moves.clear();
+    moves.clear();
     _capturedPieces.clear();
     _currentTurn = 'White';
     notifyListeners();
   }
 
   bool handleCastling(String side) {
-    String color = _currentTurn; // Current player's turn
+    String color = _currentTurn;
     if (chessGame.canCastle(side, color)) {
       chessGame.castle(side, color);
       addMove(Move(
@@ -48,9 +49,8 @@ class GameState with ChangeNotifier {
         description: '$color King castles to the $side',
       ));
       switchTurn();
-      return true; // Castling was successful
+      return true;
     }
-    return false; // Castling failed
+    return false;
   }
 }
-
