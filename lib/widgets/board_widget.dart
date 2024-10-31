@@ -42,40 +42,79 @@ class BoardWidgetState extends State<BoardWidget> {
         });
       } else {
         debugPrint('Invalid move from ${selectedPiece.toString()} to ${position.toString()}');
-        
       }
     }
   }
 
-   String renderText(Piece piece) {
+  String renderText(Piece piece) {
     return piece.renderText();
   }
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 8),
-      itemCount: 64,
-      itemBuilder: (context, index) {
-        final row = index ~/ 8;
-        final col = index % 8;
-        final position = Position(row: row, col: col);
-        final piece = widget.board.board[row][col];
-        final isHighlighted = selectedPiece != null && (position == selectedPiece || widget.gameService.isMoveValid(Move(from: selectedPiece!, to: position)));
+    final double containerHeight = 0.6 * MediaQuery.of(context).size.height;
+    final double cellSize = containerHeight / 10;
 
-        return GestureDetector(
-          onTap: () => handleTap(position),
-          child: Container(
-            decoration: BoxDecoration(
-              color: (row + col) % 2 == 0 ? Colors.white : Colors.brown,
-              border: isHighlighted ? Border.all(color: Colors.blue, width: 2) : null,
-            ),
-            child: piece != null
-                ? Center(child: Text(renderText(piece)))
-                : null,
-          ),
-        );
-      },
+    return Container(
+      width: containerHeight,
+      height: containerHeight,
+      padding: const EdgeInsets.all(0.0),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.black, width: 2),
+      ),
+      child: Table(
+        children: List.generate(10, (row) {
+          return TableRow(
+            children: List.generate(10, (col) {
+              if (row == 0 && col > 0 && col < 9) {
+                // Column labels
+                return Container(
+                  width: cellSize,
+                  height: cellSize,
+                  alignment: Alignment.center,
+                  child: Text((col).toString()),
+                );
+              } else if (col == 0 && row > 0 && row < 9) {
+                // Row labels
+                return Container(
+                  width: cellSize,
+                  height: cellSize,
+                  alignment: Alignment.center,
+                  child: Text(String.fromCharCode('A'.codeUnitAt(0) + row - 1)),
+                );
+              } else if (row > 0 && row < 9 && col > 0 && col < 9) {
+                // Chessboard cells
+                final boardRow = row - 1;
+                final boardCol = col - 1;
+                final position = Position(row: boardRow, col: boardCol);
+                final piece = widget.board.board[boardRow][boardCol];
+                final isHighlighted = selectedPiece != null && (position == selectedPiece || widget.gameService.isMoveValid(Move(from: selectedPiece!, to: position)));
+
+                return GestureDetector(
+                  onTap: () => handleTap(position),
+                  child: Container(
+                    width: cellSize,
+                    height: cellSize,
+                    decoration: BoxDecoration(
+                      color: (boardRow + boardCol) % 2 == 0 ? Colors.white : Colors.brown,
+                      border: isHighlighted ? Border.all(color: Colors.blue, width: 2) : null,
+                    ),
+                    child: piece != null
+                        ? Center(child: Text(renderText(piece)))
+                        : null,
+                  ),
+                );
+              } else {
+                // Empty cells
+                return Container(
+                  width: cellSize,
+                  height: cellSize,
+                );
+              }
+            }),
+          );
+        }),
+      ),
     );
   }
 }
