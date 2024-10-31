@@ -1,14 +1,13 @@
-class Move {
-  final String pieceName;
-  final String from;
-  final String to;
-  final bool isCapture;
-  final String description;
+import 'package:chessapp/models/position.dart';
 
-  Move(this.pieceName, this.from, this.to, {this.isCapture = false, required this.description});
+class Move {
+  final Position from;
+  final Position to;
+
+  Move({required this.from, required this.to});
 
   @override
   String toString() {
-    return description;
+    return 'Move(from: $from, to: $to)';
   }
 }

@@ -1,15 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'models/game_state.dart'; // Import the game state management class
-import 'screens/chess_screen.dart'; // Import chess_screen.dart
+import 'package:chessapp/models/chessboard.dart';
+import 'package:chessapp/services/game_service.dart';
+import 'package:chessapp/widgets/board_widget.dart';
 
 void main() {
-  runApp(
-    ChangeNotifierProvider(
-      create: (context) => GameState(),
-      child: ChessApp(),
-    ),
-  );
+  runApp(ChessApp());
 }
 
 class ChessApp extends StatelessWidget {
@@ -19,7 +14,39 @@ class ChessApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Chess App',
-      home: ChessScreen(), // Directly use the ChessScreen
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: ChessBoardScreen(),
+    );
+  }
+}
+
+class ChessBoardScreen extends StatefulWidget {
+  const ChessBoardScreen({super.key});
+
+  @override
+  ChessBoardScreenState createState() => ChessBoardScreenState();
+}
+
+class ChessBoardScreenState extends State<ChessBoardScreen> {
+  late final Chessboard board;
+  late final GameService gameService;
+
+  @override
+  void initState() {
+    super.initState();
+    board = Chessboard.initial();
+    gameService = GameService(board: board);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Chess App'),
+      ),
+      body: BoardWidget(key: UniqueKey(), board: board, gameService: gameService),
     );
   }
 }

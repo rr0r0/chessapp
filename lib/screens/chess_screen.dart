@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
+/* import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/game_state.dart';
-import '../widgets/chessboard_widget.dart';
+import '../widgets/board_widget.dart';
 
 class ChessScreen extends StatelessWidget {
   const ChessScreen({super.key});
@@ -24,7 +24,7 @@ class ChessScreen extends StatelessWidget {
                   child: Consumer<GameState>(
                     builder: (context, gameState, child) => Center(
                       child: Text(
-                        gameState.currentTurn,
+                        gameState.currentTurn ?? 'White',
                         style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -45,9 +45,10 @@ class ChessScreen extends StatelessWidget {
               ],
             ),
           ),
-          Expanded(child: ChessboardWidget()),
+          Expanded(child: BoardWidget()),
         ],
       ),
     );
   }
 }
+ */
