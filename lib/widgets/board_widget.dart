@@ -4,46 +4,96 @@ import 'package:chessapp/models/position.dart';
 import 'package:chessapp/models/move.dart';
 import 'package:chessapp/services/game_service.dart';
 import 'package:chessapp/models/pieces/piece.dart';
+import 'package:provider/provider.dart';
 
-class BoardWidget extends StatefulWidget {
-  final Chessboard board;
-  final GameService gameService;
+class ChessBoardWidget extends StatelessWidget {
+  final double gridSize;
 
-  const BoardWidget({required Key key, required this.board, required this.gameService}) : super(key: key);
+  const ChessBoardWidget({super.key, required this.gridSize});
 
   @override
-  BoardWidgetState createState() => BoardWidgetState();
+  Widget build(BuildContext context) {
+    final double cellSize = gridSize / 8;
+
+    return Consumer<GameService>(
+      builder: (context, gameService, child) {
+        return Container(
+          width: gridSize,
+          height: gridSize,
+          padding: const EdgeInsets.all(0.0),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.black, width: 2),
+          ),
+          child: Table(
+            children: List.generate(8, (row) {
+              return TableRow(
+                children: List.generate(8, (col) {
+                  final position = Position(row: row, col: col);
+
+                  return GestureDetector(
+                    onTap: () => gameService.handleTap(position),
+                    child: Container(
+                      width: cellSize,
+                      height: cellSize,
+                      decoration: BoxDecoration(
+                        color: ((row + col) % 2 == 1)
+                            ? const Color.fromARGB(
+                                255, 240, 217, 181) // Light square color
+                            : const Color.fromARGB(
+                                255, 181, 136, 99), // Dark square color
+                        border: gameService.selectedPiece != null &&
+                                gameService.currentBoard.isValidMove(Move(
+                                    from: gameService.selectedPiece!,
+                                    to: position))
+                            ? Border.all(color: Colors.blue, width: 2)
+                            : null,
+                      ),
+                      child: gameService.currentBoard.board[row][col] != null
+                          ? Stack(
+                              children: [
+                                Center(
+                                  child: Image.asset(
+                                    'images/${gameService.currentBoard.board[row][col]!.renderImage()}',
+                                    width: cellSize * 0.8,
+                                    height: cellSize * 0.8, // Adjusted height
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : null,
+                    ),
+                  );
+                }),
+              );
+            }),
+          ),
+        );
+      },
+    );
+  }
 }
 
-class BoardWidgetState extends State<BoardWidget> {
+class _ChessBoard extends StatefulWidget {
+  final double cellSize;
+  final Chessboard chessboard;
+  final GameService gameService;
+
+  const _ChessBoard({
+    required this.cellSize,
+    required this.chessboard,
+    required this.gameService,
+  });
+
+  @override
+  _ChessBoardState createState() => _ChessBoardState();
+}
+
+class _ChessBoardState extends State<_ChessBoard> {
   Position? selectedPiece;
 
   void handleTap(Position position) {
-    if (selectedPiece != null) {
-      final move = Move(from: selectedPiece!, to: position);
-      if (widget.gameService.isMoveValid(move)) {
-        debugPrint('Moving piece from ${selectedPiece.toString()} to ${position.toString()}');
-        widget.gameService.makeMove(move);
-        setState(() {
-          selectedPiece = null;
-        });
-      } else if (selectedPiece.toString() == position.toString()){
-        debugPrint('Unselected piece');
-        setState(() {
-          selectedPiece = null;
-        });
-      }
-    } else {
-      final piece = widget.board.board[position.row][position.col];
-      if (piece != null) {
-        debugPrint('Selected piece ${piece.runtimeType} ${piece.color} at ${position.toString()}');
-        setState(() {
-          selectedPiece = position;
-        });
-      } else {
-        debugPrint('Invalid move from ${selectedPiece.toString()} to ${position.toString()}');
-      }
-    }
+    context.read<GameService>().handleTap(position);
   }
 
   String renderText(Piece piece) {
@@ -52,65 +102,72 @@ class BoardWidgetState extends State<BoardWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final double containerHeight = 0.6 * MediaQuery.of(context).size.height;
-    final double cellSize = containerHeight / 10;
-
     return Container(
-      width: containerHeight,
-      height: containerHeight,
+      width: widget.cellSize * 8,
+      height: widget.cellSize * 8,
       padding: const EdgeInsets.all(0.0),
       decoration: BoxDecoration(
         border: Border.all(color: Colors.black, width: 2),
       ),
       child: Table(
-        children: List.generate(10, (row) {
+        children: List.generate(8, (row) {
           return TableRow(
-            children: List.generate(10, (col) {
-              if (row == 0 && col > 0 && col < 9) {
-                // Column labels
-                return Container(
-                  width: cellSize,
-                  height: cellSize,
-                  alignment: Alignment.center,
-                  child: Text((col).toString()),
-                );
-              } else if (col == 0 && row > 0 && row < 9) {
-                // Row labels
-                return Container(
-                  width: cellSize,
-                  height: cellSize,
-                  alignment: Alignment.center,
-                  child: Text(String.fromCharCode('A'.codeUnitAt(0) + row - 1)),
-                );
-              } else if (row > 0 && row < 9 && col > 0 && col < 9) {
-                // Chessboard cells
-                final boardRow = row - 1;
-                final boardCol = col - 1;
-                final position = Position(row: boardRow, col: boardCol);
-                final piece = widget.board.board[boardRow][boardCol];
-                final isHighlighted = selectedPiece != null && (position == selectedPiece || widget.gameService.isMoveValid(Move(from: selectedPiece!, to: position)));
+            children: List.generate(8, (col) {
+              final position = Position(row: row, col: col);
+              final isHighlighted =
+                  context.watch<GameService>().selectedPiece != null &&
+                      (position == context.watch<GameService>().selectedPiece ||
+                          widget.gameService.currentBoard.isValidMove(Move(
+                              from: context.watch<GameService>().selectedPiece!,
+                              to: position)));
 
-                return GestureDetector(
-                  onTap: () => handleTap(position),
-                  child: Container(
-                    width: cellSize,
-                    height: cellSize,
-                    decoration: BoxDecoration(
-                      color: (boardRow + boardCol) % 2 == 0 ? Colors.white : Colors.brown,
-                      border: isHighlighted ? Border.all(color: Colors.blue, width: 2) : null,
-                    ),
-                    child: piece != null
-                        ? Center(child: Text(renderText(piece)))
+              return GestureDetector(
+                onTap: () => handleTap(position),
+                child: Container(
+                  width: widget.cellSize,
+                  height: widget.cellSize,
+                  decoration: BoxDecoration(
+                    color: ((row + col) % 2 == 1)
+                        ? const Color.fromARGB(
+                            255, 240, 217, 181) // Light square color
+                        : const Color.fromARGB(
+                            255, 181, 136, 99), // Dark square color
+                    border: isHighlighted
+                        ? Border.all(color: Colors.blue, width: 2)
                         : null,
                   ),
-                );
-              } else {
-                // Empty cells
-                return Container(
-                  width: cellSize,
-                  height: cellSize,
-                );
-              }
+                  child: context.watch<GameService>().currentBoard.board[row]
+                              [col] !=
+                          null
+                      ? Stack(
+                          children: [
+                            Center(
+                              child: Image.asset(
+                                'images/${context.watch<GameService>().currentBoard.board[row][col]!.renderImage()}',
+                                width: widget.cellSize * 0.8,
+                                height: widget.cellSize * 0.8,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Text(
+                                    context
+                                        .watch<GameService>()
+                                        .currentBoard
+                                        .board[row][col]!
+                                        .renderText(),
+                                    style: TextStyle(
+                                      color: isHighlighted
+                                          ? Colors.white
+                                          : Colors.black,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        )
+                      : null,
+                ),
+              );
             }),
           );
         }),

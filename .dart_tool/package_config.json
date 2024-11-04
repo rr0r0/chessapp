@@ -194,10 +194,10 @@
       "languageVersion": "3.0"
     }
   ],
-  "generated": "2024-10-31T02:35:26.576998Z",
+  "generated": "2024-11-02T02:37:07.895381Z",
   "generator": "pub",
-  "generatorVersion": "3.5.3",
+  "generatorVersion": "3.5.4",
   "flutterRoot": "file:///C:/flutter",
-  "flutterVersion": "3.24.3",
+  "flutterVersion": "3.24.4",
   "pubCache": "file:///C:/Users/roro/AppData/Local/Pub/Cache"
 }

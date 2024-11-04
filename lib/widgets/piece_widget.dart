@@ -8,8 +8,6 @@ class PieceWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      child: Text(piece.runtimeType.toString(), style: TextStyle(fontSize: 20)),
-    );
+    return Text(piece.runtimeType.toString(), style: TextStyle(fontSize: 20));
   }
 }
