@@ -1,4 +1,5 @@
 import 'package:chessapp/models/position.dart';
+import 'package:chessapp/models/pieces/piece.dart';
 
 class Move {
   final Position from;
@@ -10,4 +11,7 @@ class Move {
   String toString() {
     return 'Move(from: $from, to: $to)';
   }
+
+  bool capture = false; 
+  Piece? capturedPiece;
 }

@@ -1,6 +1,7 @@
 import 'package:chessapp/models/pieces/piece.dart';
 import 'package:chessapp/models/position.dart';
 import 'package:chessapp/models/chessboard.dart';
+import 'package:flutter/material.dart';
 
 class Pawn extends Piece {
   final Position? initialPosition;
@@ -18,7 +19,7 @@ class Pawn extends Piece {
   @override
   bool hasMoved(Chessboard board) {
     // Implement logic to check if the rook has moved already
-    return false;
+    return _moveCount > 0;
   }
 
   @override
@@ -26,79 +27,56 @@ class Pawn extends Piece {
     if (to.row < 0 || to.row > 7 || to.col < 0 || to.col > 7) {
       return false; // Position is out of bounds
     }
+
     final fromRow = board.board.indexWhere((row) => row.contains(this));
     final fromCol = board.board[fromRow].indexOf(this);
     final from = Position(row: fromRow, col: fromCol);
     final direction = color == PieceColor.white ? 1 : -1;
-
+    final startingRow = color == PieceColor.white ? 1 : 6;
     final rowDiff = to.row - from.row;
     final colDiff = to.col - from.col;
 
     // Regular move
-    if (color == PieceColor.white && colDiff == 0 && rowDiff == 1) {
-      return board.board[to.row][to.col] == null;
-    } else if (color == PieceColor.black &&
-        from.col == to.col &&
-        rowDiff == -1) {
+    if (colDiff == 0 && rowDiff == direction) {
       return board.board[to.row][to.col] == null;
     }
 
     // Double move
-    if (color == PieceColor.white &&
-        from.row == 1 &&
-        rowDiff == 2 &&
-        colDiff == 0) {
-      return board.board[2][from.col] == null &&
-          board.board[3][from.col] == null;
+    if (colDiff == 0 && rowDiff == 2 * direction && from.row == startingRow) {
+      return board.board[from.row + direction][from.col] == null &&
+          board.board[to.row][to.col] == null;
     }
 
-    if (color == PieceColor.black &&
-        from.row == 6 &&
-        rowDiff == -2 &&
-        colDiff == 0) {
-      return board.board[4][from.col] == null &&
-          board.board[5][from.col] == null; // Initial move (black)
-    }
-
+    // Diagonal move
     if (rowDiff == direction && (colDiff == 1 || colDiff == -1)) {
       final targetPiece = board.board[to.row][to.col];
-      return targetPiece != null && targetPiece.color != color; // Capture
-    }
 
-    // En passant
-    if ((color == PieceColor.white && rowDiff == 1) ||
-        (color == PieceColor.black && rowDiff == -1)) {
-      if (colDiff == 1 || colDiff == -1) {
-        // Check for En Passant conditions
-        if (board.isSquareAttacked(
-                    to,
-                    color
-                        .opposite) && // Check if square is under attack by opponent
-                to.col == from.col + 1 ||
-            to.col == from.col - 1) {
-          // Only adjacent columns
-          final oppositeColorPawn = board.board[from.row][to.col];
-          if (oppositeColorPawn is Pawn &&
-              oppositeColorPawn.color != color &&
-              oppositeColorPawn.moveCount == 1 &&
-              oppositeColorPawn.hasMovedTwoSquares) {
-            final lastMove = board.moveHistory.last;
-            if (lastMove.to.row == from.row &&
-                lastMove.to.col == to.col &&
-                (lastMove.from.row - lastMove.to.row).abs() == 2) {
-              // Additional check to ensure En Passant is only allowed on the next move
-              if (board.moveHistory.length == 1 ||
-                  (board.moveHistory.length > 1 &&
-                      board.moveHistory[board.moveHistory.length - 2].to.row ==
-                          lastMove.from.row)) {
-                return true; // En Passant is valid under these conditions
-              }
-            }
-          }
+      // Regular diagonal capture
+      if (targetPiece != null) {
+        return targetPiece.color != color;
+      }
+
+      // En passant capture
+      else if (from.row == startingRow + 3 * direction) {
+        final enPassantTarget = board.board[to.row - direction][to.col];
+        final lastMove =
+            board.moveHistory.isNotEmpty ? board.moveHistory.last : null;
+
+        // Ensure en passant target exists, is a pawn, is of opposite color,
+        // and the last move was a double-square move by that pawn
+        if (lastMove != null &&
+            enPassantTarget != null &&
+            enPassantTarget.color != color &&
+            enPassantTarget is Pawn &&
+            (lastMove.to.row - lastMove.from.row).abs() == 2 &&
+            lastMove.to.row == to.row - direction &&
+            lastMove.to.col == to.col) {
+          // All en passant conditions are met
+          return true;
         }
       }
     }
 
-    return false; // Invalid move
+    return false;
   }
 }

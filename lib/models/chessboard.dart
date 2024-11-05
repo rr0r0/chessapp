@@ -62,46 +62,72 @@ class Chessboard {
     final from = move.from;
     final to = move.to;
     final piece = board[from.row][from.col];
+    if (piece!= null) {
+      _handleSpecialMoves(move, piece);
+      board[to.row][to.col] = piece;
+      board[from.row][from.col] = null;
+      if (piece.position!= null) {
+        piece.position = to;
+      }
+      moveHistory.add(move);
+      return true;
+    }
+    return false;
+  }
+
+  void _handleSpecialMoves(Move move, Piece piece) {
     if (piece is Pawn && (move.to.col - move.from.col).abs() == 1) {
-      // Check for En Passant
-      final oppositeColorPawn = board[from.row][to.col];
-      if (oppositeColorPawn is Pawn &&
-          oppositeColorPawn.color != piece.color &&
-          oppositeColorPawn.moveCount == 1 &&
-          oppositeColorPawn.hasMovedTwoSquares) {
-        final lastMove = moveHistory.last;
-        if (lastMove.to.row == move.from.row &&
-            lastMove.to.col == move.to.col &&
-            (lastMove.from.row - lastMove.to.row).abs() == 2) {
-          // Remove the captured Pawn (En Passant)
-          board[lastMove.to.row][lastMove.to.col] = null;
-        }
-      }
-    } else if (piece is King && (to.col - from.col).abs() == 2) {
-      final rook = getRook(to, from);
-      if (rook != null) {
-        final oldRookPosition = rook.position;
-        if (oldRookPosition != null) {
-          final rookMoveCol =
-              move.to.col > move.from.col ? move.to.col - 1 : move.to.col + 1;
-          board[to.row][rookMoveCol] = rook;
-          board[oldRookPosition.row][oldRookPosition.col] = null;
-          rook.position = Position(
-              row: to.row, col: rookMoveCol); // Update the rook's position
-          rook.setHasMoved(true); // Update the rook's _hasMoved flag
-        }
-      }
-      piece.setHasMoved(true); // Update the king's _hasMoved flag
+      _handleEnPassant(move, piece);
+    } else if (piece is King && (move.to.col - move.from.col).abs() == 2) {
+      _handleCastling(move, piece);
     } else {
-      piece?.setHasMoved(true); // Update the piece's _hasMoved flag
+      piece.setHasMoved(true); // Update the piece's _hasMoved flag
     }
-    board[to.row][to.col] = piece;
-    board[from.row][from.col] = null;
-    if (piece?.position != null) {
-      piece?.position = to;
+  }
+
+  void _handleEnPassant(Move move, Piece piece) {
+    final fromRow = move.from.row;
+    final fromCol = move.from.col;
+    final toRow = move.to.row;
+    final toCol = move.to.col;
+    final direction = piece.color == PieceColor.white? 1 : -1;
+    final startingRow = piece.color == PieceColor.white? 1 : 6;
+
+    if (fromRow == startingRow + 3 * direction) {
+      final enPassantTarget = board[toRow - direction][toCol];
+      final lastMove = moveHistory.isNotEmpty? moveHistory.last : null;
+
+      if (lastMove!= null &&
+          enPassantTarget!= null &&
+          enPassantTarget.color!= piece.color &&
+          enPassantTarget is Pawn &&
+          (lastMove.to.row - lastMove.from.row).abs() == 2 &&
+          lastMove.to.row == toRow - direction &&
+          lastMove.to.col == toCol) {
+        // Remove the captured Pawn (En Passant)
+        board[lastMove.to.row][lastMove.to.col] = null;
+        move.capture = true;
+        move.capturedPiece = enPassantTarget;
+      }
     }
-    moveHistory.add(move);
-    return true;
+    piece.setHasMoved(true); // Update the pawn's _hasMoved flag
+  }
+
+  void _handleCastling(Move move, Piece piece) {
+    final rook = getRook(move.to, move.from);
+    if (rook!= null) {
+      final oldRookPosition = rook.position;
+      if (oldRookPosition!= null) {
+        final rookMoveCol =
+            move.to.col > move.from.col? move.to.col - 1 : move.to.col + 1;
+        board[move.to.row][rookMoveCol] = rook;
+        board[oldRookPosition.row][oldRookPosition.col] = null;
+        rook.position = Position(
+            row: move.to.row, col: rookMoveCol); // Update the rook's position
+        rook.setHasMoved(true); // Update the rook's _hasMoved flag
+      }
+    }
+    piece.setHasMoved(true); // Update the king's _hasMoved flag
   }
 
   Piece? getRook(Position to, Position from) {
@@ -134,7 +160,7 @@ class Chessboard {
     if (piece is Pawn && (move.to.col - move.from.col).abs() == 1) {
       final oppositeColorPawn = board[move.from.row][move.to.col];
       if (oppositeColorPawn is Pawn &&
-          oppositeColorPawn.color != piece.color &&
+          oppositeColorPawn.color!= piece.color &&
           oppositeColorPawn.moveCount == 1 &&
           oppositeColorPawn.hasMovedTwoSquares) {
         final lastMove = moveHistory.last;
@@ -142,6 +168,7 @@ class Chessboard {
             lastMove.to.col == move.to.col &&
             (lastMove.from.row - lastMove.to.row).abs() == 2) {
           // En passant is valid, even though the destination square is empty
+          debugPrint('Possible en passant detected for $piece');
           return true;
         }
       }
@@ -166,7 +193,7 @@ class Chessboard {
   bool isSquareAttacked(Position pos, PieceColor attackerColor) {
     for (var row in board) {
       for (var piece in row) {
-        if (piece != null && piece.color == attackerColor) {
+        if (piece!= null && piece.color == attackerColor) {
           if (piece.canMoveTo(this, pos)) return true;
         }
       }

@@ -46,29 +46,6 @@ class GameService with ChangeNotifier {
         // Save current board state before making the move
         _boardHistory.add(board.copy());
 
-        if (piece is King && (move.to.col - move.from.col).abs() == 2) {
-          final rook = piece.getRook(board, move.to);
-          if (rook != null) {
-            // Handle castling
-            final row = move.to.row;
-            final col = move.to.col > move.from.col ? 7 : 0;
-            final rookCurrentPosition = Position(row: row, col: col);
-            final rookMoveCol =
-                move.to.col > move.from.col ? move.to.col - 1 : move.to.col + 1;
-            board.movePiece(Move(
-                from: rookCurrentPosition,
-                to: Position(row: move.to.row, col: rookMoveCol)));
-            rook.position = Position(row: move.to.row, col: rookMoveCol);
-            rook.setHasMoved(true);
-
-            // **Updated Castling Handling**
-            // Add only the King to _movedPieces for castling moves
-            // This maintains the 1:1 correspondence with _moveHistory
-            _movedPieces.add(piece);
-            piece.setHasMoved(true); // Ensure the king's _hasMoved flag is set
-          }
-        }
-
         // Make the move on the board
         board.movePiece(move);
         piece.position = move.to; // Update piece position
@@ -105,34 +82,29 @@ class GameService with ChangeNotifier {
 
         final boardBeforeMove = _boardHistory[moveIndex];
         final capturedPiece = boardBeforeMove.board[move.to.row][move.to.col];
-        if (capturedPiece != null) {
-          final capturedColor =
-              capturedPiece.color == PieceColor.white ? 'White' : 'Black';
-          final capturedPieceName =
-              capturedPiece.runtimeType.toString().split('.').last;
 
-          if (piece is Pawn &&
-              (move.to.col - move.from.col).abs() == 1 &&
-              board.board[move.to.row][move.to.col] == null) {
-            final lastMove = _moveHistory.length > 1
-                ? _moveHistory[_moveHistory.length - 2]
-                : null;
-            if (lastMove != null &&
-                lastMove.to.row == move.from.row &&
-                lastMove.to.col == move.to.col &&
-                (lastMove.from.row - lastMove.to.row).abs() == 2) {
-              // En passant confirmed
+        if (move.capture == true) {
+          if (capturedPiece != null) {
+            final capturedColor =
+                capturedPiece.color == PieceColor.white ? 'White' : 'Black';
+            final capturedPieceName =
+                capturedPiece.runtimeType.toString().split('.').last;
+
+            return '$color $pieceName captures $capturedColor $capturedPieceName at $toCol${toRow + 1} from $fromCol${fromRow + 1}';
+          } else {
+            // En passant move with no captured piece on the destination square
+            final capturedColor =
+                piece.color == PieceColor.white ? 'Black' : 'White';
+            if (piece is Pawn && (move.to.col - move.from.col).abs() == 1) {
               return '$color Pawn captures $capturedColor Pawn en passant at $toCol${toRow + 1} from $fromCol${fromRow + 1}';
             } else {
-              // Regular diagonal move, not en passant
-              return '$color Pawn moves from $fromCol${fromRow + 1} to $toCol${toRow + 1}';
+              // This should not occur, as en passant is only valid for pawns
+              return '$color $pieceName makes an unknown capture at $toCol${toRow + 1} from $fromCol${fromRow + 1}';
             }
-          } else {
-            return '$color $pieceName captures $capturedColor $capturedPieceName at $toCol${toRow + 1} from $fromCol${fromRow + 1}';
           }
         } else if (piece is King && (move.to.col - move.from.col).abs() == 2) {
           final castlingSide = move.to.col > move.from.col ? 'King' : 'Queen';
-          return '$color King castles at $castlingSide side with Rook';
+          return '$color King castles at $castlingSide side';
         } else {
           return '$color $pieceName moves from $fromCol${fromRow + 1} to $toCol${toRow + 1}';
         }
@@ -141,6 +113,7 @@ class GameService with ChangeNotifier {
       // Handle desynchronization or empty histories
       print(
           'Warning: _movedPieces is not synchronized with _moveHistory or histories are empty');
+      print('_movedPieces: $_movedPieces, _movedHistory: $_moveHistory');
       return _moveHistory
           .map((move) =>
               'Move ${_moveHistory.indexOf(move) + 1} (no piece information)')
