@@ -3,42 +3,66 @@ import 'package:chessapp/models/chessboard.dart';
 import 'package:chessapp/models/position.dart';
 
 class Queen extends Piece {
-  Queen({required super.color});
+  bool _hasMoved = false;
+
+  Queen({required super.color, required Position initialPosition}) {
+    position = initialPosition;
+  }
 
   @override
   bool hasMoved(Chessboard board) {
-    // Implement logic to check if the queen has moved already
-    return false;
+    return _hasMoved;
+  }
+
+  @override
+  void setHasMoved(bool value) {
+    _hasMoved = value;
   }
 
   @override
   bool canMoveTo(Chessboard board, Position to) {
-    if (to.row < 0 || to.row > 7 || to.col < 0 || to.col > 7) {
-      return false; // Position is out of bounds
-    }
-    if (to.row < 0 || to.row > 7 || to.col < 0 || to.col > 7) {
-      return false; // Position is out of bounds
-    }
-    final from = board.board.indexWhere((row) => row.contains(this));
-    final fromCol = board.board[from].indexOf(this);
-    final rowDiff = to.row - from;
-    final colDiff = to.col - fromCol;
+    final from = position;
+    final rowDiff = to.row - from!.row;
+    final colDiff = to.col - from.col;
 
-    if (rowDiff == 0 || colDiff == 0 || rowDiff.abs() == colDiff.abs()) {
-      int step = rowDiff.abs() + colDiff.abs();
-      int rowStep = rowDiff != 0 ? rowDiff.sign : 0;
-      int colStep = colDiff != 0 ? colDiff.sign : 0;
+    if (board.board[to.row][to.col] != null &&
+        board.board[to.row][to.col]!.color == color) {
+      return false;
+    }
 
-      for (int i = 1; i < step; i++) {
-        if (board.board[from + rowStep * i][fromCol + colStep * i] != null) {
-          return false; // Path is blocked
-        }
+    // Check for horizontal movement
+    if (rowDiff == 0) {
+      // Check if there are any pieces in the way
+      for (int i = from.col + (colDiff > 0 ? 1 : -1);
+          i != to.col;
+          i += (colDiff > 0 ? 1 : -1)) {
+        if (board.board[from.row][i] != null) return false;
       }
-
-      return board.board[to.row][to.col] == null ||
-          board.board[to.row][to.col]!.color != color;
+      return true;
     }
 
-    return false; // Invalid move
+    // Check for vertical movement
+    if (colDiff == 0) {
+      // Check if there are any pieces in the way
+      for (int i = from.row + (rowDiff > 0 ? 1 : -1);
+          i != to.row;
+          i += (rowDiff > 0 ? 1 : -1)) {
+        if (board.board[i][from.col] != null) return false;
+      }
+      return true;
+    }
+
+    // Check for diagonal movement
+    if (rowDiff.abs() == colDiff.abs()) {
+      // Check if there are any pieces in the way
+      for (int i = 1; i < rowDiff.abs(); i++) {
+        final row = from.row + (rowDiff > 0 ? i : -i);
+        final col = from.col + (colDiff > 0 ? i : -i);
+        if (board.board[row][col] != null) return false;
+      }
+      return true;
+    }
+
+    return false;
   }
 }

@@ -3,12 +3,22 @@ import 'package:chessapp/models/chessboard.dart';
 import 'package:chessapp/models/position.dart';
 
 class Rook extends Piece {
-  Rook({required super.color});
+  @override
+  Position? position;
+  bool _hasMoved = false;
+
+  Rook({required super.color, required Position initialPosition}) {
+    position = initialPosition; // <--- Ensure position is set initially
+  }
 
   @override
   bool hasMoved(Chessboard board) {
-    // Implement logic to check if the rook has moved already
-    return false;
+    return _hasMoved;
+  }
+
+  @override
+  void setHasMoved(bool value) {
+    _hasMoved = value;
   }
 
   @override

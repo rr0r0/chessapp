@@ -1,4 +1,3 @@
-// lib/models/chessboard.dart
 import 'package:chessapp/models/pieces/piece.dart';
 import 'package:chessapp/models/pieces/pawn.dart';
 import 'package:chessapp/models/pieces/rook.dart';
@@ -20,14 +19,20 @@ class Chessboard {
     final board = List.generate(8, (_) => List<Piece?>.filled(8, null));
     // Place pieces on the board
     for (int i = 0; i < 8; i++) {
-      board[1][i] = Pawn(color: PieceColor.white);
-      board[6][i] = Pawn(color: PieceColor.black);
+      board[1][i] = Pawn(
+          color: PieceColor.white, initialPosition: Position(row: 1, col: i));
+      board[6][i] = Pawn(
+          color: PieceColor.black, initialPosition: Position(row: 6, col: i));
     }
     // Place other pieces (rooks, knights, etc.)
-    board[0][0] = Rook(color: PieceColor.white);
-    board[0][7] = Rook(color: PieceColor.white);
-    board[7][0] = Rook(color: PieceColor.black);
-    board[7][7] = Rook(color: PieceColor.black);
+    board[0][0] = Rook(
+        color: PieceColor.white, initialPosition: Position(row: 0, col: 0));
+    board[0][7] = Rook(
+        color: PieceColor.white, initialPosition: Position(row: 0, col: 7));
+    board[7][0] = Rook(
+        color: PieceColor.black, initialPosition: Position(row: 7, col: 0));
+    board[7][7] = Rook(
+        color: PieceColor.black, initialPosition: Position(row: 7, col: 7));
 
     board[0][1] = Knight(color: PieceColor.white);
     board[0][6] = Knight(color: PieceColor.white);
@@ -39,8 +44,10 @@ class Chessboard {
     board[7][2] = Bishop(color: PieceColor.black);
     board[7][5] = Bishop(color: PieceColor.black);
 
-    board[0][3] = Queen(color: PieceColor.white);
-    board[7][3] = Queen(color: PieceColor.black);
+    board[0][3] = Queen(
+        color: PieceColor.white, initialPosition: Position(row: 0, col: 3));
+    board[7][3] = Queen(
+        color: PieceColor.black, initialPosition: Position(row: 7, col: 3));
 
     board[0][4] = King(
         color: PieceColor.white, initialPosition: Position(row: 0, col: 4));
@@ -55,26 +62,44 @@ class Chessboard {
     final from = move.from;
     final to = move.to;
     final piece = board[from.row][from.col];
-    if (piece is King && (to.col - from.col).abs() == 2) {
+    if (piece is Pawn && (move.to.col - move.from.col).abs() == 1) {
+      // Check for En Passant
+      final oppositeColorPawn = board[from.row][to.col];
+      if (oppositeColorPawn is Pawn &&
+          oppositeColorPawn.color != piece.color &&
+          oppositeColorPawn.moveCount == 1 &&
+          oppositeColorPawn.hasMovedTwoSquares) {
+        final lastMove = moveHistory.last;
+        if (lastMove.to.row == move.from.row &&
+            lastMove.to.col == move.to.col &&
+            (lastMove.from.row - lastMove.to.row).abs() == 2) {
+          // Remove the captured Pawn (En Passant)
+          board[lastMove.to.row][lastMove.to.col] = null;
+        }
+      }
+    } else if (piece is King && (to.col - from.col).abs() == 2) {
       final rook = getRook(to, from);
       if (rook != null) {
         final oldRookPosition = rook.position;
         if (oldRookPosition != null) {
-          final rookMoveCol = to.col > from.col ? to.col - 1 : to.col + 1;
+          final rookMoveCol =
+              move.to.col > move.from.col ? move.to.col - 1 : move.to.col + 1;
           board[to.row][rookMoveCol] = rook;
           board[oldRookPosition.row][oldRookPosition.col] = null;
-          rook.position = Position(row: to.row, col: rookMoveCol);
+          rook.position = Position(
+              row: to.row, col: rookMoveCol); // Update the rook's position
+          rook.setHasMoved(true); // Update the rook's _hasMoved flag
         }
       }
-      // ignore: unnecessary_cast
-      (piece as King).hasMoved; // Update the hasMoved flag
+      piece.setHasMoved(true); // Update the king's _hasMoved flag
+    } else {
+      piece?.setHasMoved(true); // Update the piece's _hasMoved flag
     }
     board[to.row][to.col] = piece;
     board[from.row][from.col] = null;
     if (piece?.position != null) {
       piece?.position = to;
     }
-    debugPrint('Moved piece from ${from.toString()} to ${to.toString()}');
     moveHistory.add(move);
     return true;
   }
@@ -86,10 +111,8 @@ class Chessboard {
       final piece = board[row][i];
       if (piece is Rook && piece.color == king?.color) {
         if (to.col > from.col && i == 7) {
-          print(piece.toString());
           return piece;
         } else if (to.col < from.col && i == 0) {
-          print(piece.toString());
           return piece;
         }
       }
@@ -105,6 +128,23 @@ class Chessboard {
     if (piece == null) {
       debugPrint('No piece at ${from.toString()}');
       return false;
+    }
+
+    // Check for en passant
+    if (piece is Pawn && (move.to.col - move.from.col).abs() == 1) {
+      final oppositeColorPawn = board[move.from.row][move.to.col];
+      if (oppositeColorPawn is Pawn &&
+          oppositeColorPawn.color != piece.color &&
+          oppositeColorPawn.moveCount == 1 &&
+          oppositeColorPawn.hasMovedTwoSquares) {
+        final lastMove = moveHistory.last;
+        if (lastMove.to.row == move.from.row &&
+            lastMove.to.col == move.to.col &&
+            (lastMove.from.row - lastMove.to.row).abs() == 2) {
+          // En passant is valid, even though the destination square is empty
+          return true;
+        }
+      }
     }
 
     return piece.canMoveTo(this, to);

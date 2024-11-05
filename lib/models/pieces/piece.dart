@@ -12,7 +12,10 @@ enum PieceColor {
 
 abstract class Piece {
   final PieceColor color;
-  Position? position;
+  Position? _position;
+  // ignore: unnecessary_getters_setters
+  Position? get position => _position;
+  bool _hasMoved = false;
 
   Piece({required this.color});
 
@@ -41,5 +44,15 @@ abstract class Piece {
     return '$pieceColor$imagePiece.png';
   }
 
-  bool hasMoved(Chessboard board);
+  bool hasMoved(Chessboard board) {
+    return _hasMoved;
+  }
+
+  void setHasMoved(bool value) {
+    _hasMoved = value;
+  }
+
+  set position(Position? value) {
+    _position = value;
+  }
 }

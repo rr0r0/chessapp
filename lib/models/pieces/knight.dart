@@ -1,7 +1,6 @@
 import 'package:chessapp/models/pieces/piece.dart';
 import 'package:chessapp/models/chessboard.dart';
 import 'package:chessapp/models/position.dart';
-import 'package:flutter/material.dart';
 
 class Knight extends Piece {
   Knight({required super.color});
@@ -17,7 +16,6 @@ class Knight extends Piece {
     if (to.row < 0 || to.row > 7 || to.col < 0 || to.col > 7) {
       return false; // Position is out of bounds
     }
-    debugPrint('Knight Pawn');
     final from = board.board.indexWhere((row) => row.contains(this));
     final fromCol = board.board[from].indexOf(this);
     final rowDiff = to.row - from;
