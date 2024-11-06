@@ -3,7 +3,9 @@ import 'package:chessapp/models/chessboard.dart';
 import 'package:chessapp/models/position.dart';
 
 class Knight extends Piece {
-  Knight({required super.color});
+  Knight({required super.color, required Position initialPosition}) {
+    position = initialPosition;
+  }
 
   @override
   bool hasMoved(Chessboard board) {

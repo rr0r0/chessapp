@@ -15,7 +15,7 @@ void main() {
 
     test('Knight movement', () {
       final board = Chessboard.initial();
-      final knight = Knight(color: PieceColor.white);
+      final knight = Knight(color: PieceColor.white, initialPosition: Position(row: 0, col: 4));
       board.board[0][1] = knight;
       expect(knight.canMoveTo(board, Position(row: 2, col: 2)), isTrue);
       expect(knight.canMoveTo(board, Position(row: 1, col: 1)), isFalse);

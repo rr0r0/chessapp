@@ -3,8 +3,6 @@ import 'package:chessapp/models/chessboard.dart';
 import 'package:chessapp/models/position.dart';
 
 class Rook extends Piece {
-  @override
-  Position? position;
   bool _hasMoved = false;
 
   Rook({required super.color, required Position initialPosition}) {

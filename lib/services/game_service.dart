@@ -2,15 +2,16 @@ import 'package:chessapp/models/chessboard.dart';
 import 'package:chessapp/models/move.dart';
 import 'package:chessapp/models/pieces/piece.dart';
 import 'package:chessapp/models/position.dart';
-import 'package:chessapp/utils/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:chessapp/models/pieces/king.dart';
 import 'package:chessapp/models/pieces/pawn.dart';
+import 'package:chessapp/utils/tuple.dart';
 
 class GameService with ChangeNotifier {
   Position? selectedPiece;
   final Chessboard board;
-  Color currentTurn = Color.white;
+  Piece? pieceObject;
+  PieceColor currentTurn = PieceColor.white;
   final List<Move> _moveHistory = [];
   final List<Piece> _movedPieces = [];
   final List<Chessboard> _boardHistory = [];
@@ -26,78 +27,79 @@ class GameService with ChangeNotifier {
       } else {
         final move = Move(from: selectedPiece!, to: position);
         if (board.isValidMove(move)) {
-          makeMove(move);
+          if (!isInCheckAfterMove(move)) {
+            makeMove(move);
+          } else {
+            print("Invalid move: It would put the king in check.");
+          }
         }
         selectedPiece = null;
       }
     } else {
       final piece = currentBoard.board[position.row][position.col];
       if (piece != null) {
-        selectedPiece = position;
+        if (piece.color == _getOpponentColor(currentTurn)) {
+          _highlightError();
+        } else {
+          selectedPiece = position;
+        }
       }
     }
     notifyListeners();
   }
 
+  bool isInCheckAfterMove(Move move) {
+    final tempBoard = board.copy();
+    tempBoard.movePiece(move);
+
+    final opponentMoves = tempBoard.getValidMovesForColor(_getOpponentColor(currentTurn));
+    King king = Piece.getPiecesByTypeAndColor(currentTurn, PieceType.king, board: tempBoard).first as King;
+    return isInCheck(opponentMoves, king);
+  }
+
   bool makeMove(Move move) {
-  if (board.isValidMove(move)) {
     final piece = board.board[move.from.row][move.from.col];
     if (piece != null) {
-      // Save current board state before making the move
+      // Save the current board state before making the move
       _boardHistory.add(board.copy());
 
       // Make the move on the board
       board.movePiece(move);
 
       piece.position = move.to; // Update piece position
-      piece.setHasMoved(true); // Mark piece as moved
+      piece.setHasMoved(true);  // Mark piece as moved
 
       // Append move and piece to histories
       _moveHistory.add(move);
       _movedPieces.add(piece);
 
       // Switch turns
-      currentTurn = currentTurn == Color.white ? Color.black : Color.white;
+      currentTurn = _getOpponentColor(currentTurn);
       selectedPiece = null;
-      
-      // Call method to print valid moves for the opponent's color
-      printValidMovesForColor();
+
+      // Print valid moves for the opponent's color
+      printValidMovesForColor(currentTurn);
 
       notifyListeners();
       return true;
     }
+    return false;
   }
-  return false;
-}
+
+  PieceColor _getOpponentColor(PieceColor color) {
+    return color == PieceColor.white ? PieceColor.black : PieceColor.white;
+  }
 
   /// Method to print valid moves for a given color.
-  void printValidMovesForColor() {
-    final validMoves = board.getValidMovesForAllPieces();
-    for (final move in validMoves) {
-      print('Valid Moves: $move');
-    }
-  }
-
-  /* final validMoves = getValidMovesForColor(color);
+  void printValidMovesForColor(PieceColor color) {
+    final validMoves = board.getValidMovesForColor(color);
     print('Valid moves for $color pieces after move:');
     for (final move in validMoves) {
       print('Valid Moves: $move');
-    } */
+    }
+  }
 
   /// Method to get valid moves for all pieces of a specified color.
-  List<Move> getValidMovesForColor() {
-    final allValidMoves = board.getValidMovesForAllPieces();
-    final validMovesForColor = <Move>[];
-
-    for (final tuple in allValidMoves) {
-      /* if (tuple.item1 == color) {
-        
-      } */
-     validMovesForColor.addAll(tuple.item2);
-    }
-
-    return validMovesForColor;
-  }
 
   List<String> get visualMoveHistory {
     if (_moveHistory.isNotEmpty && _movedPieces.length == _moveHistory.length) {
@@ -149,5 +151,41 @@ class GameService with ChangeNotifier {
               'Move ${_moveHistory.indexOf(move) + 1} (no piece information)')
           .toList();
     }
+  }
+
+  Future<void> _highlightError() async {
+    final oppositeTurnColor =
+        currentTurn == PieceColor.white ? 'Black' : 'White';
+    print(
+        'Warning: Attempted to select a $oppositeTurnColor piece on ${currentTurn.toString()} turn!');
+
+    // Highlight the turn for a couple of seconds
+    errorHighlight = true;
+    notifyListeners();
+    await Future.delayed(const Duration(seconds: 2));
+    errorHighlight = false;
+    notifyListeners();
+  }
+
+  bool errorHighlight = false;
+
+  bool isInCheck(List<Tuple<String, List<Move>>> opponentMoves, King piece) {
+    final position = piece.position;
+    if (position != null) {
+      return isSquareAttacked(opponentMoves, position);
+    }
+    return false;
+  }
+
+  bool isSquareAttacked(
+      List<Tuple<String, List<Move>>> opponentMoves, Position square) {
+    for (final tuple in opponentMoves) {
+      for (final move in tuple.item2) {
+        if (move.to.row == square.row && move.to.col == square.col) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }

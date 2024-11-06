@@ -46,7 +46,9 @@ class ChessBoardWidget extends StatelessWidget {
                                     from: gameService.selectedPiece!,
                                     to: position))
                             ? Border.all(color: Colors.blue, width: 2)
-                            : null,
+                              : gameService.errorHighlight
+                              ? Border.all(color: Colors.red, width: 2)
+                              : null,
                       ),
                       child: gameService.currentBoard.board[row][col] != null
                           ? Stack(

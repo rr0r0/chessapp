@@ -3,7 +3,9 @@ import 'package:chessapp/models/chessboard.dart';
 import 'package:chessapp/models/position.dart';
 
 class Bishop extends Piece {
-  Bishop({required super.color});
+  Bishop({required super.color, required Position initialPosition}) {
+    position = initialPosition;
+  }
 
   @override
   bool hasMoved(Chessboard board) {

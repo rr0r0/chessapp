@@ -1,7 +1,6 @@
 import 'package:chessapp/models/pieces/piece.dart';
 import 'package:chessapp/models/position.dart';
 import 'package:chessapp/models/chessboard.dart';
-import 'package:flutter/material.dart';
 
 class Pawn extends Piece {
   final Position? initialPosition;
