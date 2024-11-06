@@ -7,6 +7,7 @@ import 'package:chessapp/models/pieces/queen.dart';
 import 'package:chessapp/models/pieces/king.dart';
 import 'package:chessapp/models/move.dart';
 import 'package:chessapp/models/position.dart';
+import 'package:chessapp/utils/tuple.dart';
 import 'package:flutter/material.dart';
 
 class Chessboard {
@@ -62,11 +63,11 @@ class Chessboard {
     final from = move.from;
     final to = move.to;
     final piece = board[from.row][from.col];
-    if (piece!= null) {
+    if (piece != null) {
       _handleSpecialMoves(move, piece);
       board[to.row][to.col] = piece;
       board[from.row][from.col] = null;
-      if (piece.position!= null) {
+      if (piece.position != null) {
         piece.position = to;
       }
       moveHistory.add(move);
@@ -90,16 +91,16 @@ class Chessboard {
     final fromCol = move.from.col;
     final toRow = move.to.row;
     final toCol = move.to.col;
-    final direction = piece.color == PieceColor.white? 1 : -1;
-    final startingRow = piece.color == PieceColor.white? 1 : 6;
+    final direction = piece.color == PieceColor.white ? 1 : -1;
+    final startingRow = piece.color == PieceColor.white ? 1 : 6;
 
     if (fromRow == startingRow + 3 * direction) {
       final enPassantTarget = board[toRow - direction][toCol];
-      final lastMove = moveHistory.isNotEmpty? moveHistory.last : null;
+      final lastMove = moveHistory.isNotEmpty ? moveHistory.last : null;
 
-      if (lastMove!= null &&
-          enPassantTarget!= null &&
-          enPassantTarget.color!= piece.color &&
+      if (lastMove != null &&
+          enPassantTarget != null &&
+          enPassantTarget.color != piece.color &&
           enPassantTarget is Pawn &&
           (lastMove.to.row - lastMove.from.row).abs() == 2 &&
           lastMove.to.row == toRow - direction &&
@@ -115,11 +116,11 @@ class Chessboard {
 
   void _handleCastling(Move move, Piece piece) {
     final rook = getRook(move.to, move.from);
-    if (rook!= null) {
+    if (rook != null) {
       final oldRookPosition = rook.position;
-      if (oldRookPosition!= null) {
+      if (oldRookPosition != null) {
         final rookMoveCol =
-            move.to.col > move.from.col? move.to.col - 1 : move.to.col + 1;
+            move.to.col > move.from.col ? move.to.col - 1 : move.to.col + 1;
         board[move.to.row][rookMoveCol] = rook;
         board[oldRookPosition.row][oldRookPosition.col] = null;
         rook.position = Position(
@@ -160,7 +161,7 @@ class Chessboard {
     if (piece is Pawn && (move.to.col - move.from.col).abs() == 1) {
       final oppositeColorPawn = board[move.from.row][move.to.col];
       if (oppositeColorPawn is Pawn &&
-          oppositeColorPawn.color!= piece.color &&
+          oppositeColorPawn.color != piece.color &&
           oppositeColorPawn.moveCount == 1 &&
           oppositeColorPawn.hasMovedTwoSquares) {
         final lastMove = moveHistory.last;
@@ -190,14 +191,36 @@ class Chessboard {
     return Chessboard(board: boardCopy);
   }
 
-  bool isSquareAttacked(Position pos, PieceColor attackerColor) {
+  List<Tuple<String, List<Move>>> getValidMovesForAllPieces() {
+    final validMoves = <Tuple<String, List<Move>>>[];
+
     for (var row in board) {
       for (var piece in row) {
-        if (piece!= null && piece.color == attackerColor) {
-          if (piece.canMoveTo(this, pos)) return true;
+        if (piece != null && piece.position != null) {
+          // Check if both piece and position are non-null
+          final piecePosition = piece.position!;
+          final validPieceMoves = <Move>[];
+
+          // Check all possible positions on the board for valid moves
+          for (int targetRow = 0; targetRow < 8; targetRow++) {
+            for (int targetCol = 0; targetCol < 8; targetCol++) {
+              final pos = Position(row: targetRow, col: targetCol);
+              final tempMove = Move(from: piecePosition, to: pos);
+              if (isValidMove(tempMove)) {
+                validPieceMoves.add(tempMove);
+              }
+            }
+          }
+
+          // Only add the piece's moves if there are valid moves to report
+          final pieceFormat = piece.renderText();
+          if (validPieceMoves.isNotEmpty) {
+            validMoves.add(Tuple(pieceFormat, validPieceMoves));
+          }
         }
       }
     }
-    return false;
+
+    return validMoves;
   }
 }

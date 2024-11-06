@@ -40,30 +40,63 @@ class GameService with ChangeNotifier {
   }
 
   bool makeMove(Move move) {
-    if (board.isValidMove(move)) {
-      final piece = board.board[move.from.row][move.from.col];
-      if (piece != null) {
-        // Save current board state before making the move
-        _boardHistory.add(board.copy());
+  if (board.isValidMove(move)) {
+    final piece = board.board[move.from.row][move.from.col];
+    if (piece != null) {
+      // Save current board state before making the move
+      _boardHistory.add(board.copy());
 
-        // Make the move on the board
-        board.movePiece(move);
-        piece.position = move.to; // Update piece position
-        piece.setHasMoved(true); // Mark piece as moved
+      // Make the move on the board
+      board.movePiece(move);
 
-        // Append move and piece to histories
-        _moveHistory.add(move);
-        if (!(piece is King && (move.to.col - move.from.col).abs() == 2)) {
-          _movedPieces.add(piece); // Avoid adding king twice for castling
-        }
+      piece.position = move.to; // Update piece position
+      piece.setHasMoved(true); // Mark piece as moved
 
-        currentTurn = currentTurn == Color.white ? Color.black : Color.white;
-        selectedPiece = null;
-        notifyListeners();
-        return true;
-      }
+      // Append move and piece to histories
+      _moveHistory.add(move);
+      _movedPieces.add(piece);
+
+      // Switch turns
+      currentTurn = currentTurn == Color.white ? Color.black : Color.white;
+      selectedPiece = null;
+      
+      // Call method to print valid moves for the opponent's color
+      printValidMovesForColor();
+
+      notifyListeners();
+      return true;
     }
-    return false;
+  }
+  return false;
+}
+
+  /// Method to print valid moves for a given color.
+  void printValidMovesForColor() {
+    final validMoves = board.getValidMovesForAllPieces();
+    for (final move in validMoves) {
+      print('Valid Moves: $move');
+    }
+  }
+
+  /* final validMoves = getValidMovesForColor(color);
+    print('Valid moves for $color pieces after move:');
+    for (final move in validMoves) {
+      print('Valid Moves: $move');
+    } */
+
+  /// Method to get valid moves for all pieces of a specified color.
+  List<Move> getValidMovesForColor() {
+    final allValidMoves = board.getValidMovesForAllPieces();
+    final validMovesForColor = <Move>[];
+
+    for (final tuple in allValidMoves) {
+      /* if (tuple.item1 == color) {
+        
+      } */
+     validMovesForColor.addAll(tuple.item2);
+    }
+
+    return validMovesForColor;
   }
 
   List<String> get visualMoveHistory {
@@ -92,13 +125,11 @@ class GameService with ChangeNotifier {
 
             return '$color $pieceName captures $capturedColor $capturedPieceName at $toCol${toRow + 1} from $fromCol${fromRow + 1}';
           } else {
-            // En passant move with no captured piece on the destination square
             final capturedColor =
                 piece.color == PieceColor.white ? 'Black' : 'White';
             if (piece is Pawn && (move.to.col - move.from.col).abs() == 1) {
               return '$color Pawn captures $capturedColor Pawn en passant at $toCol${toRow + 1} from $fromCol${fromRow + 1}';
             } else {
-              // This should not occur, as en passant is only valid for pawns
               return '$color $pieceName makes an unknown capture at $toCol${toRow + 1} from $fromCol${fromRow + 1}';
             }
           }
@@ -110,10 +141,9 @@ class GameService with ChangeNotifier {
         }
       }).toList();
     } else {
-      // Handle desynchronization or empty histories
       print(
           'Warning: _movedPieces is not synchronized with _moveHistory or histories are empty');
-      print('_movedPieces: $_movedPieces, _movedHistory: $_moveHistory');
+      print('_movedPieces: $_movedPieces, _moveHistory: $_moveHistory');
       return _moveHistory
           .map((move) =>
               'Move ${_moveHistory.indexOf(move) + 1} (no piece information)')

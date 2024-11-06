@@ -66,7 +66,7 @@ class King extends Piece {
   }
 
   bool isInCheck(Chessboard board) {
-    return board.isSquareAttacked(position!, color.opposite);
+    return false;
   }
 
   List<Position> getKingPath(Position to) {
@@ -101,13 +101,13 @@ class King extends Piece {
     }
 
     // Check if the king passes through a square that is under attack
-    final kingPath = getKingPath(to);
+    /* final kingPath = getKingPath(to);
     for (var position in kingPath) {
       if (board.isSquareAttacked(position, color.opposite)) {
         return false;
       }
     }
-
+ */
     // Check if the rook has moved
     if (rook.hasMoved(board)) {
       return false;
