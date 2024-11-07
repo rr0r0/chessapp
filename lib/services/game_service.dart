@@ -27,10 +27,15 @@ class GameService with ChangeNotifier {
       } else {
         final move = Move(from: selectedPiece!, to: position);
         if (board.isValidMove(move)) {
-          if (!isInCheckAfterMove(move)) {
-            makeMove(move);
+          if (_boardHistory.isNotEmpty) {
+            final simulatedBoard = board.copy();
+            if (!isInCheckAfterMove(move, simulatedBoard)) {
+              makeMove(move);
+            } else {
+              _highlightError();
+            }
           } else {
-            print("Invalid move: It would put the king in check.");
+            makeMove(move);
           }
         }
         selectedPiece = null;
@@ -48,13 +53,25 @@ class GameService with ChangeNotifier {
     notifyListeners();
   }
 
-  bool isInCheckAfterMove(Move move) {
-    final tempBoard = board.copy();
-    tempBoard.movePiece(move);
+  bool isInCheckAfterMove(Move move, Chessboard simulatedBoard) {
+    // Simulate the move by directly modifying the piece positions
+  Piece? piece = simulatedBoard.board[move.from.row][move.from.col];
+  if (piece != null) {
+    // Place piece on destination and remove it from origin
+    simulatedBoard.board[move.from.row][move.from.col] = null;
+    simulatedBoard.board[move.to.row][move.to.col] = piece;
+    piece.position = move.to; // Update piece's position to the new one
+  }
 
-    final opponentMoves = tempBoard.getValidMovesForColor(_getOpponentColor(currentTurn));
-    King king = Piece.getPiecesByTypeAndColor(currentTurn, PieceType.king, board: tempBoard).first as King;
-    return isInCheck(opponentMoves, king);
+  // Get the opponent's moves on this simulated board
+  final opponentMoves = simulatedBoard.getValidMovesForAllPieces(simulatedBoard);
+
+  // Get the current player's king
+  King king = Piece.getPiecesByTypeAndColor(currentTurn, PieceType.king, board: simulatedBoard).first as King;
+
+  // Check if the king is in check
+  print('opponentMoves: $opponentMoves, king: $king, board: $simulatedBoard');
+  return isInCheck(opponentMoves, king, simulatedBoard);
   }
 
   bool makeMove(Move move) {
@@ -67,7 +84,7 @@ class GameService with ChangeNotifier {
       board.movePiece(move);
 
       piece.position = move.to; // Update piece position
-      piece.setHasMoved(true);  // Mark piece as moved
+      piece.setHasMoved(true); // Mark piece as moved
 
       // Append move and piece to histories
       _moveHistory.add(move);
@@ -90,16 +107,12 @@ class GameService with ChangeNotifier {
     return color == PieceColor.white ? PieceColor.black : PieceColor.white;
   }
 
-  /// Method to print valid moves for a given color.
   void printValidMovesForColor(PieceColor color) {
-    final validMoves = board.getValidMovesForColor(color);
-    print('Valid moves for $color pieces after move:');
+    final simulatedBoard = _boardHistory.last.copy();
+    final validMoves = simulatedBoard.getValidMovesForColor(color, simulatedBoard);
     for (final move in validMoves) {
-      print('Valid Moves: $move');
     }
   }
-
-  /// Method to get valid moves for all pieces of a specified color.
 
   List<String> get visualMoveHistory {
     if (_moveHistory.isNotEmpty && _movedPieces.length == _moveHistory.length) {
@@ -136,16 +149,14 @@ class GameService with ChangeNotifier {
             }
           }
         } else if (piece is King && (move.to.col - move.from.col).abs() == 2) {
-          final castlingSide = move.to.col > move.from.col ? 'King' : 'Queen';
+          final castlingSide =
+              move.to.col - move.from.col > 0 ? 'King' : 'Queen';
           return '$color King castles at $castlingSide side';
         } else {
           return '$color $pieceName moves from $fromCol${fromRow + 1} to $toCol${toRow + 1}';
         }
       }).toList();
     } else {
-      print(
-          'Warning: _movedPieces is not synchronized with _moveHistory or histories are empty');
-      print('_movedPieces: $_movedPieces, _moveHistory: $_moveHistory');
       return _moveHistory
           .map((move) =>
               'Move ${_moveHistory.indexOf(move) + 1} (no piece information)')
@@ -156,8 +167,6 @@ class GameService with ChangeNotifier {
   Future<void> _highlightError() async {
     final oppositeTurnColor =
         currentTurn == PieceColor.white ? 'Black' : 'White';
-    print(
-        'Warning: Attempted to select a $oppositeTurnColor piece on ${currentTurn.toString()} turn!');
 
     // Highlight the turn for a couple of seconds
     errorHighlight = true;
@@ -169,16 +178,17 @@ class GameService with ChangeNotifier {
 
   bool errorHighlight = false;
 
-  bool isInCheck(List<Tuple<String, List<Move>>> opponentMoves, King piece) {
+  bool isInCheck(List<Tuple<String, List<Move>>> opponentMoves, King piece,
+      Chessboard board) {
     final position = piece.position;
     if (position != null) {
-      return isSquareAttacked(opponentMoves, position);
+      return isSquareAttacked(opponentMoves, position, board);
     }
     return false;
   }
 
-  bool isSquareAttacked(
-      List<Tuple<String, List<Move>>> opponentMoves, Position square) {
+  bool isSquareAttacked(List<Tuple<String, List<Move>>> opponentMoves,
+      Position square, Chessboard board) {
     for (final tuple in opponentMoves) {
       for (final move in tuple.item2) {
         if (move.to.row == square.row && move.to.col == square.col) {

@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 class Chessboard {
   final List<Move> moveHistory = [];
   final List<List<Piece?>> board;
+  bool _isCastling = false;
 
   Chessboard({required this.board});
 
@@ -66,19 +67,25 @@ class Chessboard {
     return Chessboard(board: board);
   }
 
-  // Method to move a piece
   bool movePiece(Move move) {
     final from = move.from;
     final to = move.to;
     final piece = board[from.row][from.col];
+
     if (piece != null) {
-      _handleSpecialMoves(move, piece);
+      // Handle any special move logic, such as castling or en passant
+
+      // Move the piece to the new position
       board[to.row][to.col] = piece;
+
+      // Clear the original square only if the piece has moved successfully
       board[from.row][from.col] = null;
-      if (piece.position != null) {
-        piece.position = to;
-      }
+
+      // Update piece position and add to move history
+      piece.position = to;
+      _handleSpecialMoves(move, piece);
       moveHistory.add(move);
+
       return true;
     }
     return false;
@@ -122,75 +129,82 @@ class Chessboard {
   }
 
   void _handleCastling(Move move, Piece piece) {
-    final rook = getRook(move.to, move.from);
-    if (rook != null) {
-      final oldRookPosition = rook.position;
-      print('Old Rook Position: $oldRookPosition');
-      if (oldRookPosition != null) {
-        // For kingside castling (right): Rook moves from (0,7) to (0,5)
-        // For queenside castling (left): Rook moves from (0,0) to (0,4)
-        final rookMoveCol = move.to.col > move.from.col ? 5 : 4;
-        print('Rook will move to column: $rookMoveCol');
+    if (_isCastling) {
+      return;
+    }
 
-        // Check if the rook's position already matches the target position
-        if (oldRookPosition.col != rookMoveCol) {
-          // Now move the rook first, before the king
-          board[move.to.row][rookMoveCol] = rook;
-          board[oldRookPosition.row][oldRookPosition.col] =
-              null; // Clear old rook position
+    _isCastling = true;
+    final rook = getRook(move);
 
-          // Update the rook's position
-          rook.position = Position(row: move.to.row, col: rookMoveCol);
-          rook.setHasMoved(true);
+    // Check if rook exists and if it has not moved
+    if (rook == null) {
+      _isCastling = false;
+      return;
+    } else if (rook.hasMoved(this)) {
+      _isCastling = false;
+      return;
+    } else if (rook.position!.col == 5 || rook.position!.col == 2) {
+      _isCastling = false;
+      return;
+    }
 
-          print(
-              'Castling: Moved rook from $oldRookPosition to ${rook.position}');
-          print(
-              'Board updated: rook at ${rook.position}, king at ${piece.position}');
-        } else {
-          print('Rook is already at the target position; no move needed.');
-        }
+    final rookOldPosition = rook.position;
+    final isKingside = move.to.col > move.from.col;
+    final rookNewCol = isKingside ? 5 : 2;
 
-        // Now move the king
-        piece.position = move.to;
-        piece.setHasMoved(true);
+
+    // Ensure the destination square is empty
+    if (board[move.to.row][rookNewCol] != null) {
+      _isCastling = false;
+      return;
+    }
+
+    // Update board with rook's new position and clear old position
+    board[move.to.row][rookNewCol] = rook;
+    board[rookOldPosition!.row][rookOldPosition.col] = null;
+
+    // Update rook's internal position and mark both rook and king as moved
+    rook.position = Position(row: move.to.row, col: rookNewCol);
+    rook.setHasMoved(true);
+    piece.setHasMoved(true);
+
+    _isCastling = false;
+  }
+
+  Piece? getRook(Move kingMove) {
+    final from = kingMove.from;
+    final to = kingMove.to;
+    final row = from.row;
+    final color = row == 0 ? PieceColor.white : PieceColor.black;
+
+    // Verify color is non-null and then proceed
+    // ignore: unnecessary_null_comparison
+    if (color != null) {
+      // Determine if this is a kingside or queenside castling attempt
+      final isKingside = to.col > from.col;
+      final rookCol = isKingside
+          ? 7
+          : 0; // Kingside rook is typically at column 7, queenside at column 0
+
+
+      final rook = board[row][rookCol];
+
+      // Ensure the piece at rookCol is a rook of the same color
+      if (rook is Rook && rook.color == color) {
+        return rook;
+      } else {
       }
     } else {
-      print('No rook detected for castling');
-    }
-  }
-
-  Piece? getRook(Position to, Position from) {
-    final row = from.row;
-    final color = board[row][from.col]?.color;
-
-    // Find the rook on the same row, either at column 0 or 7
-    if (color != null) {
-      if (to.col > from.col) {
-        // King is castling to the right: look for the rook at (0, 7)
-        final rook = board[row][7];
-        if (rook is Rook && rook.color == color) {
-          return rook;
-        }
-      } else {
-        // King is castling to the left: look for the rook at (0, 0)
-        final rook = board[row][0];
-        if (rook is Rook && rook.color == color) {
-          return rook;
-        }
-      }
     }
 
-    return null; // Return null if no rook found
+    return null; // Return null if no valid rook found
   }
 
-  // Method to check if a move is valid
   bool isValidMove(Move move) {
     final from = move.from;
     final to = move.to;
     final piece = board[from.row][from.col];
     if (piece == null) {
-      debugPrint('No piece at ${from.toString()}');
       return false;
     }
 
@@ -228,52 +242,67 @@ class Chessboard {
     return Chessboard(board: boardCopy);
   }
 
-  List<Tuple<String, List<Move>>> getValidMovesForAllPieces() {
+  List<Tuple<String, List<Move>>> getValidMovesForAllPieces(Chessboard board) {
     final validMoves = <Tuple<String, List<Move>>>[];
+    final simulatedBoard = board.copy();
+    final allPieces = _getAllPieces(simulatedBoard);
 
-    var r = 0;
-    var c = 0;
-    for (var row in board) {
-      //print('row: $row, r: $r');
-      c = 0;
-      for (var piece in row) {
-        //print('col: $c');
-        if (piece != null) {
-          piece.position ??= Position(row: r, col: c);
-          if (piece.position != null) {
-            //print('Processing Piece: ${piece.renderText()} at ${piece.position}');
-            // Check if both piece and position are non-null
-            final piecePosition = piece.position!;
-            final validPieceMoves = <Move>[];
-
-            // Check all possible positions on the board for valid moves
-            for (int targetRow = 0; targetRow < 8; targetRow++) {
-              for (int targetCol = 0; targetCol < 8; targetCol++) {
-                final pos = Position(row: targetRow, col: targetCol);
-                final tempMove = Move(from: piecePosition, to: pos);
-                if (isValidMove(tempMove)) {
-                  validPieceMoves.add(tempMove);
-                }
-              }
-            }
-
-            // Only add the piece's moves if there are valid moves to report
-            final pieceFormat = piece.renderText();
-            if (validPieceMoves.isNotEmpty) {
-              validMoves.add(Tuple(pieceFormat, validPieceMoves));
-            }
-          }
-        }
-        c++;
+    for (final piece in allPieces) {
+      final validPieceMoves = _getValidMovesForPiece(board, piece);
+      if (validPieceMoves.isNotEmpty) {
+        validMoves.add(Tuple(piece.renderText(), validPieceMoves));
       }
-      r++;
     }
 
     return validMoves;
   }
 
-  List<Tuple<String, List<Move>>> getValidMovesForColor(PieceColor color) {
-    final allValidMoves = getValidMovesForAllPieces();
+  List<Piece> _getAllPieces(Chessboard board) {
+    final allPieces = <Piece>[];
+    for (final row in board.board) {
+      for (final piece in row) {
+        if (piece != null) {
+          piece.position ??= _getPosition(piece, board);
+          if (piece.position != null) {
+            allPieces.add(piece);
+          }
+        }
+      }
+    }
+    return allPieces;
+  }
+
+  List<Move> _getValidMovesForPiece(Chessboard board, Piece piece) {
+    final piecePosition = piece.position!;
+    final validPieceMoves = <Move>[];
+
+    for (int targetRow = 0; targetRow < 8; targetRow++) {
+      for (int targetCol = 0; targetCol < 8; targetCol++) {
+        final pos = Position(row: targetRow, col: targetCol);
+        final tempMove = Move(from: piecePosition, to: pos);
+        if (board.isValidMove(tempMove)) {
+          validPieceMoves.add(tempMove);
+        }
+      }
+    }
+
+    return validPieceMoves;
+  }
+
+  Position _getPosition(Piece piece, Chessboard board) {
+    for (int row = 0; row < 8; row++) {
+      for (int col = 0; col < 8; col++) {
+        if (board.board[row][col] == piece) {
+          return Position(row: row, col: col);
+        }
+      }
+    }
+    throw Exception('Piece not found on the board');
+  }
+
+  List<Tuple<String, List<Move>>> getValidMovesForColor(
+      PieceColor color, Chessboard simulatedBoard) {
+    final allValidMoves = getValidMovesForAllPieces(simulatedBoard);
     final validMovesForColor = <Tuple<String, List<Move>>>[];
     final colorLetter = color == PieceColor.white ? 'W' : 'B';
 

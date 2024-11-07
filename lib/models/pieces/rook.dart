@@ -4,6 +4,15 @@ import 'package:chessapp/models/position.dart';
 
 class Rook extends Piece {
   bool _hasMoved = false;
+  Position? _position;
+
+  @override
+  Position? get position => _position;
+
+  @override
+  set position(Position? value) {
+    _position = value; 
+  }
 
   Rook({required super.color, required Position initialPosition}) {
     position = initialPosition; // <--- Ensure position is set initially
